@@ -57,6 +57,7 @@ class Predictor(tf.keras.models.Model):
         prediction = self.mean_predictor(match_vector)
         return prediction
 
+
     def save(self):
         self.offense_vectorizer.save_weights('/home/ktt/Code/Python/TeamVectorize/model/offense_vectorizer/model')
         self.defense_vectorizer.save_weights('/home/ktt/Code/Python/TeamVectorize/model/defense_vectorizer/model')
