@@ -71,15 +71,18 @@ def load(key):
     matches.extend(get_event_matches(key))
 
 
-threads = []
-for key_num, key  in enumerate(keys):
-    thread = threading.Thread(target=load, args=(key,))
-    threads.append(thread)
-    thread.start()
+batches = [keys[i:i + constants.download_batch_size] for i in range(0, len(keys), constants.download_batch_size)]
+for i, curr_keys in enumerate(batches):
+    print('\u001b[2K\r{:.2f}%'.format(i / len(batches) * 100), end='', flush=True)
 
-for thread_num, thread in enumerate(threads):
-    print('\u001b[2K\r{:.2f}%'.format(thread_num / len(threads) * 100), end='', flush=True)
-    thread.join()
+    threads = []
+    for key_num, key  in enumerate(curr_keys):
+        thread = threading.Thread(target=load, args=(key,))
+        threads.append(thread)
+        thread.start()
+
+    for thread_num, thread in enumerate(threads):
+        thread.join()
 
 print('\u001b[2K\r100.00%')
 

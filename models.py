@@ -58,12 +58,12 @@ class Predictor(tf.keras.models.Model):
         return prediction
 
     def save(self):
-        self.offense_vectorizer.save_weights('/home/ktt/Code/Python/TeamVectorize/model/offense_vectorizer/model')
-        self.defense_vectorizer.save_weights('/home/ktt/Code/Python/TeamVectorize/model/defense_vectorizer/model')
-        self.mean_predictor.save_weights('/home/ktt/Code/Python/TeamVectorize/model/mean_predictor/model')
+        self.offense_vectorizer.save_weights('model/offense_vectorizer/model')
+        self.defense_vectorizer.save_weights('model/defense_vectorizer/model')
+        self.mean_predictor.save_weights('model/mean_predictor/model')
 
 
     def load(self):
-        self.offense_vectorizer.load_weights('/home/ktt/Code/Python/TeamVectorize/model/offense_vectorizer/model')
-        self.defense_vectorizer.load_weights('/home/ktt/Code/Python/TeamVectorize/model/defense_vectorizer/model')
-        self.mean_predictor.load_weights('/home/ktt/Code/Python/TeamVectorize/model/mean_predictor/model')
+        self.offense_vectorizer.load_weights('model/offense_vectorizer/model')
+        self.defense_vectorizer.load_weights('model/defense_vectorizer/model')
+        self.mean_predictor.load_weights('model/mean_predictor/model')
