@@ -11,7 +11,8 @@ def get_event_keys(year):
 
     keys = []
     for raw_event in raw_events:
-        keys.append(raw_event['key'])
+        if raw_event['event_type'] != constants.offseason_type and raw_event['event_type'] != constants.offseason_type:
+            keys.append(raw_event['key'])
 
     return keys
 
