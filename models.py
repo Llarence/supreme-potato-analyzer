@@ -4,8 +4,8 @@ import load
 import config
 
 offense_vector_size = 4
-defense_vector_size = 4
-meta_vector_size = 4
+defense_vector_size = 2
+meta_vector_size = 1
 predictor_vector_size = offense_vector_size + defense_vector_size + meta_vector_size
 
 offense_location = f'data/{config.year}/model/offense/'
@@ -26,8 +26,8 @@ class Predictor(tf.keras.models.Model):
     def _generate_offense_vectorizer(self):
         model = tf.keras.Sequential([
             tf.keras.layers.Dense(load.team_vector_size, activation='leaky_relu'),
-            tf.keras.layers.Dense(2048, activation='leaky_relu'),
             tf.keras.layers.Dense(512, activation='leaky_relu'),
+            tf.keras.layers.Dropout(0.8),
             tf.keras.layers.Dense(offense_vector_size, activation='linear')
         ])
 
@@ -38,7 +38,7 @@ class Predictor(tf.keras.models.Model):
         model = tf.keras.Sequential([
             tf.keras.layers.Dense(load.team_vector_size, activation='leaky_relu'),
             tf.keras.layers.Dense(256, activation='leaky_relu'),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
+            tf.keras.layers.Dropout(0.8),
             tf.keras.layers.Dense(defense_vector_size, activation='linear')
         ])
 
@@ -48,8 +48,6 @@ class Predictor(tf.keras.models.Model):
     def _generate_meta_vectorizer(self):
         model = tf.keras.Sequential([
             tf.keras.layers.Dense(load.meta_vector_size, activation='leaky_relu'),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
             tf.keras.layers.Dense(meta_vector_size, activation='linear')
         ])
 
@@ -59,10 +57,14 @@ class Predictor(tf.keras.models.Model):
     def _generate_predictor(self):
         model = tf.keras.Sequential([
             tf.keras.layers.Dense(predictor_vector_size, activation='leaky_relu'),
+            tf.keras.layers.Dense(512, activation='leaky_relu'),
+            tf.keras.layers.Dropout(0.9),
             tf.keras.layers.Dense(256, activation='leaky_relu'),
+            tf.keras.layers.Dropout(0.9),
             tf.keras.layers.Dense(256, activation='leaky_relu'),
+            tf.keras.layers.Dropout(0.9),
             tf.keras.layers.Dense(256, activation='leaky_relu'),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
+            tf.keras.layers.Dropout(0.9),
             tf.keras.layers.Dense(load.output_size, activation='linear')
         ])
 
@@ -71,12 +73,12 @@ class Predictor(tf.keras.models.Model):
 
     # Does this have to be a tf function
     @tf.function
-    def call(self, x):
-        offense_vector = self.offense_vectorizer(x[:, :load.team_vector_size])
-        defense_vector = self.defense_vectorizer(x[:, load.team_vector_size:(2 * load.team_vector_size)])
-        meta_vector = self.meta_vectorizer(x[:, (2 * load.team_vector_size):])
+    def call(self, x, training=False):
+        offense_vector = self.offense_vectorizer(x[:, :load.team_vector_size], training)
+        defense_vector = self.defense_vectorizer(x[:, load.team_vector_size:(2 * load.team_vector_size)], training)
+        meta_vector = self.meta_vectorizer(x[:, (2 * load.team_vector_size):], training)
 
-        prediction = self.predictor(tf.concat([offense_vector, defense_vector, meta_vector], 1))
+        prediction = self.predictor(tf.concat([offense_vector, defense_vector, meta_vector], 1), training)
         return prediction
 
 

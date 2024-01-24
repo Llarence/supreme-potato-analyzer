@@ -19,6 +19,12 @@ y = np.load(shared.ys_location)
 x = tf.constant(x)
 y = tf.constant(y)
 
+test_x = np.load(shared.test_xs_location)
+test_y = np.load(shared.test_ys_location)
+
+test_x = tf.constant(test_x)
+test_y = tf.constant(test_y)
+
 team_vector_size = num_teams
 meta_vector_size = x.shape[1] - (2 * team_vector_size)
 
