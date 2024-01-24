@@ -1,30 +1,29 @@
-import json
 import tensorflow as tf
 import numpy as np
 
-import constants
+import shared
 
-matches = None
-teams_to_indices = None
-with open(constants.cache_location) as file:
-    matches, teams_to_indices = json.loads(file.read())
+with open(shared.teams_location) as file:
+    teams = file.read().split('\n')
 
-team_indices = list(teams_to_indices.values())
-one_hot_cache = tf.one_hot(team_indices, len(team_indices))
+num_teams = len(teams)
 
-def match_to_tensors(match):
-    blue_robots = one_hot_cache[teams_to_indices[match[0][0][0]]] + one_hot_cache[teams_to_indices[match[0][0][1]]] + one_hot_cache[teams_to_indices[match[0][0][2]]]
-    blue_output = match[0][1]
-    blue_output[5] = int(blue_output[5])
-    red_output = tf.convert_to_tensor(blue_output, dtype=tf.float32)
+team_ids = range(num_teams)
+teams_to_ids = dict(zip(teams, team_ids))
 
-    red_robots = one_hot_cache[teams_to_indices[match[1][0][0]]] + one_hot_cache[teams_to_indices[match[1][0][1]]] + one_hot_cache[teams_to_indices[match[1][0][2]]]
-    red_output = match[1][1]
-    red_output[5] = int(red_output[5])
-    red_output = tf.convert_to_tensor(red_output, dtype=tf.float32)
+one_hot_teams = tf.one_hot(team_ids, num_teams)
 
-    match_meta = np.zeros(len(team_indices), dtype=np.float32)
-    match_meta[0] = float(match[2][0])
-    match_meta = tf.convert_to_tensor(match_meta, dtype=tf.float32)
+x = np.load(shared.xs_location)
+y = np.load(shared.ys_location)
 
-    return ((tf.cast(tf.stack([blue_robots, red_robots, match_meta]), dtype=tf.float32), blue_output), (tf.cast(tf.stack([red_robots, blue_robots, match_meta]), dtype=tf.float32), red_output))
+x = tf.constant(x)
+y = tf.constant(y)
+
+team_vector_size = num_teams
+meta_vector_size = x.shape[1] - (2 * team_vector_size)
+
+y_shape = y.shape
+if len(y_shape) == 1:
+    output_size = 1
+else:
+    output_size = y_shape[1]
