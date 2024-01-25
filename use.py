@@ -3,14 +3,14 @@ import tensorflow as tf
 import load
 import models
 
-predictor = models.Predictor()
-predictor.load()
+model, defense_vectorizer, offense_vectorizer = models.create_models()
+models.load_model(model)
 
 is_defense = input('Defense (y)?\n')
 if is_defense == 'y':
-    vectorizer = predictor.defense_vectorizer
+    vectorizer = defense_vectorizer
 else:
-    vectorizer = predictor.offense_vectorizer
+    vectorizer = offense_vectorizer
 vectors = vectorizer.predict(load.one_hot_teams)
 
 inp_team = 'frc' + input('Team Number?\n')

@@ -12,19 +12,31 @@ import util
 tba = tbapy.TBA('3gnerr3ePmpTujuPLT79EyIr0xHC3fSzZBhdmg8EOZSM2nY0duhvb6oYbxx4yimU')
 download_batch_size = 12
 
-def get_event_keys(year):
+def is_normal(event_type):
+    return event_type == shared.regional or \
+        event_type == shared.district or \
+        event_type == shared.district_championship or \
+        event_type == shared.district_championship_division
+
+
+def is_champ(event_type):
+    return event_type == shared.championship_division or \
+        event_type == shared.championship_final
+
+
+def get_event_keys_and_metas(year):
     raw_events = tba.events(year)
 
-    normal_keys = []
-    champ_keys = []
+    normal_keys_and_metas = []
+    champ_keys_and_metas = []
     for raw_event in raw_events:
-        if raw_event['event_type'] != shared.offseason_type and raw_event['event_type'] != shared.preseason_type:
-            if raw_event['event_type'] == shared.championship_division or raw_event['event_type'] == shared.championship_final:
-                champ_keys.append(raw_event['key'])
-            else:
-                normal_keys.append(raw_event['key'])
+        event_type = raw_event['event_type']
+        if is_normal(event_type):
+            normal_keys_and_metas.append((raw_event['key'], (raw_event['week'],)))
+        elif is_champ(event_type):
+            champ_keys_and_metas.append((raw_event['key'], (6,)))
 
-    return normal_keys, champ_keys
+    return normal_keys_and_metas, champ_keys_and_metas
 
 
 def get_event_teams(key):
@@ -37,7 +49,8 @@ def get_event_teams(key):
     return teams
 
 
-def get_event_matches(key):
+def get_event_matches(key, meta):
+    week, = meta
     raw_matches = tba.event_matches(key)
 
     matches = []
@@ -47,39 +60,37 @@ def get_event_matches(key):
             red = raw_match['alliances']['red']
             matches.append(((blue['team_keys'], blue['score']), 
                             (red['team_keys'], red['score']),
-                            (float(raw_match['comp_level'] != 'qm'),)))
+                            (int(raw_match['comp_level'] != 'qm'), week)))
         except:
             pass
 
     return matches
 
 
-def match_to_tensor(match, teams_to_ids, on_hot_teams):
+def match_to_data(match, teams_to_ids, on_hot_teams):
     (blue_teams, blue_score), (red_teams, red_score), meta = match
 
     one_hot_blue = sum([on_hot_teams[teams_to_ids[blue_team]] for blue_team in blue_teams])
     one_hot_red = sum([on_hot_teams[teams_to_ids[red_team]] for red_team in red_teams])
-    meta = tf.constant(meta)
+    meta = tf.constant(meta, dtype=tf.float32)
 
-    blue_data = (tf.concat([one_hot_blue, one_hot_red, meta], 0), tf.constant(blue_score))
-    red_data = (tf.concat([one_hot_red, one_hot_blue, meta], 0), tf.constant(red_score))
-    return blue_data, red_data
+    return one_hot_blue, one_hot_red, meta, tf.constant(blue_score, dtype=tf.float32), tf.constant(red_score, dtype=tf.float32)
 
 
-def load(key, teams, matches):
+def load(key, meta, teams, matches):
     teams.update(get_event_teams(key))
-    matches.extend(get_event_matches(key))
+    matches.extend(get_event_matches(key, meta))
 
 
-def load_keys(keys):
+def load_keys(keys_and_metas):
     teams = set()
     matches = []
 
-    batches = [keys[i:i + download_batch_size] for i in range(0, len(keys), download_batch_size)]
-    for curr_keys in util.show_percent(batches):
+    batches = [keys_and_metas[i:i + download_batch_size] for i in range(0, len(keys_and_metas), download_batch_size)]
+    for curr_keys_and_metas in util.show_percent(batches):
         threads = []
-        for key  in curr_keys:
-            thread = threading.Thread(target=load, args=(key, teams, matches))
+        for key, meta in curr_keys_and_metas:
+            thread = threading.Thread(target=load, args=(key, meta, teams, matches))
             threads.append(thread)
             thread.start()
 
@@ -89,30 +100,36 @@ def load_keys(keys):
     return matches, teams
 
 
-def convert_to_data(matches, teams_to_ids, one_hot_teams):
-    x = []
+def matches_to_data(matches, teams_to_ids, one_hot_teams):
+    x_offense = []
+    x_defense = []
+    x_meta = []
     y = []
     for match in util.show_percent(matches):
-        (blue_x, blue_y), (red_x, red_y) = match_to_tensor(match, teams_to_ids, one_hot_teams)
+        blue_x, red_x, meta_x, blue_y, red_y = match_to_data(match, teams_to_ids, one_hot_teams)
 
-        x.append(blue_x)
-        x.append(red_x)
-
+        x_offense.append(blue_x)
+        x_defense.append(red_x)
+        x_meta.append(meta_x)
         y.append(blue_y)
+
+        x_offense.append(red_x)
+        x_defense.append(blue_x)
+        x_meta.append(meta_x)
         y.append(red_y)
 
-    x = tf.stack(x)
+    x_offense = tf.stack(x_offense)
+    x_defense = tf.stack(x_defense)
+    x_meta = tf.stack(x_meta)
     y = tf.stack(y)
 
-    return x, y
+    return x_offense, x_defense, x_meta, y
 
 
-normal_keys, champ_keys = get_event_keys(config.year)
+normal_keys_and_metas, champ_keys_and_metas = get_event_keys_and_metas(config.year)
 
-normal_matches, teams1 = load_keys(normal_keys)
-print(len(normal_matches))
-champ_matches, teams2 = load_keys(champ_keys)
-print(len(champ_matches))
+normal_matches, teams1 = load_keys(normal_keys_and_metas)
+champ_matches, teams2 = load_keys(champ_keys_and_metas)
 
 teams = list(teams1.union(teams2))
 num_teams = len(teams)
@@ -122,16 +139,20 @@ teams_to_ids = dict(zip(teams, team_ids))
 
 one_hot_teams = tf.one_hot(team_ids, num_teams)
 
-x, y = convert_to_data(normal_matches, teams_to_ids, one_hot_teams)
-test_x, test_y = convert_to_data(champ_matches, teams_to_ids, one_hot_teams)
+x_offense, x_defense, x_meta, y = matches_to_data(normal_matches, teams_to_ids, one_hot_teams)
+test_x_offense, test_x_defense, test_x_meta, test_y = matches_to_data(champ_matches, teams_to_ids, one_hot_teams)
 
 os.makedirs(shared.download_location, exist_ok=True)
 
 with open(shared.teams_location, 'w+') as file:
     file.write('\n'.join(teams))
 
-np.save(shared.xs_location, x)
-np.save(shared.ys_location, y)
+np.save(shared.x_offense_location, x_offense)
+np.save(shared.x_defense_location, x_defense)
+np.save(shared.x_meta_location, x_meta)
+np.save(shared.y_location, y)
 
-np.save(shared.test_xs_location, test_x)
-np.save(shared.test_ys_location, test_y)
+np.save(shared.test_x_offense_location, test_x_offense)
+np.save(shared.test_x_defense_location, test_x_defense)
+np.save(shared.test_x_meta_location, test_x_meta)
+np.save(shared.test_y_location, test_y)

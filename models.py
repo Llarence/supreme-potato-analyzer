@@ -1,97 +1,62 @@
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 import load
 import config
 
-offense_vector_size = 4
-defense_vector_size = 2
-meta_vector_size = 1
-predictor_vector_size = offense_vector_size + defense_vector_size + meta_vector_size
+model_location = f'data/{config.year}/model/'
 
-offense_location = f'data/{config.year}/model/offense/'
-defense_location = f'data/{config.year}/model/defense/'
-meta_location = f'data/{config.year}/model/meta/'
-predictor_location = f'data/{config.year}/model/predictor/'
+def create_models():
+    offense_inp = tf.keras.layers.Input(shape=(load.team_vector_size,))
+    offense = tf.keras.layers.Dense(128, activation='linear', use_bias=False)(offense_inp)
+    offense = tf.keras.layers.Dense(4, activation='linear', use_bias=False)(offense)
 
-class Predictor(tf.keras.models.Model):
-    def __init__(self):
-        super(Predictor, self).__init__()   
-        self.offense_vectorizer = self._generate_offense_vectorizer()
-        self.defense_vectorizer = self._generate_defense_vectorizer()
-        self.meta_vectorizer = self._generate_meta_vectorizer()
-        self.predictor = self._generate_predictor()
+    defense_inp = tf.keras.layers.Input(shape=(load.team_vector_size,))
+    defense = tf.keras.layers.Dense(128, activation='linear', use_bias=False)(defense_inp)
+    defense = tf.keras.layers.Dense(2, activation='linear', use_bias=False)(defense)
 
-        self.compile(optimizer=tf.optimizers.Adam(), loss=tf.losses.MeanAbsoluteError())
+    meta_inp = tf.keras.layers.Input(shape=(load.meta_vector_size,))
+    meta = tf.keras.layers.Dense(128, activation='leaky_relu')(meta_inp)
+    meta = tf.keras.layers.Dense(1, activation='leaky_relu')(meta)
 
-    def _generate_offense_vectorizer(self):
-        model = tf.keras.Sequential([
-            tf.keras.layers.Dense(load.team_vector_size, activation='leaky_relu'),
-            tf.keras.layers.Dense(512, activation='leaky_relu'),
-            tf.keras.layers.Dropout(0.8),
-            tf.keras.layers.Dense(offense_vector_size, activation='linear')
-        ])
+    analyzer = tf.keras.layers.Concatenate()([offense, defense, meta])
+    analyzer = tf.keras.layers.Dense(128, activation='leaky_relu')(analyzer)
+    analyzer = tf.keras.layers.Dense(128, activation='leaky_relu')(analyzer)
+    analyzer = tf.keras.layers.Dense(128, activation='leaky_relu')(analyzer)
+    analyzer = tf.keras.layers.Dense(64, activation='leaky_relu')(analyzer)
 
-        return model
+    means = []
+    deviations = []
+    for i in range(load.output_size):
+        output = tf.keras.layers.Dense(64, activation='leaky_relu')(analyzer)
+        output = tf.keras.layers.Dense(32, activation='leaky_relu')(output)
 
+        mean = tf.keras.layers.Dense(32, activation='leaky_relu')(output)
+        mean = tf.keras.layers.Dense(32, activation='leaky_relu')(mean)
+        mean = tf.keras.layers.Dense(1, activation='linear')(mean)
 
-    def _generate_defense_vectorizer(self):
-        model = tf.keras.Sequential([
-            tf.keras.layers.Dense(load.team_vector_size, activation='leaky_relu'),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
-            tf.keras.layers.Dropout(0.8),
-            tf.keras.layers.Dense(defense_vector_size, activation='linear')
-        ])
+        deviation = tf.keras.layers.Dense(32, activation='leaky_relu')(output)
+        deviation = tf.keras.layers.Dense(32, activation='leaky_relu')(deviation)
+        deviation = tf.keras.layers.Dense(1, activation='linear')(deviation)
 
-        return model
+        means.append(mean)
+        deviations.append(deviation)
 
+    outputs = tf.keras.layers.Concatenate()(means + deviations)
+    outputs = tfp.layers.DistributionLambda(
+        lambda x: tfp.distributions.Normal(loc=x[:, :load.output_size], 
+                                           scale=tf.math.softplus(x[:, load.output_size:])))(outputs)
 
-    def _generate_meta_vectorizer(self):
-        model = tf.keras.Sequential([
-            tf.keras.layers.Dense(load.meta_vector_size, activation='leaky_relu'),
-            tf.keras.layers.Dense(meta_vector_size, activation='linear')
-        ])
+    model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [outputs])
 
-        return model
+    model.compile(optimizer=tf.optimizers.Adam(), loss=lambda y, pred_y: -pred_y.log_prob(y))
 
-
-    def _generate_predictor(self):
-        model = tf.keras.Sequential([
-            tf.keras.layers.Dense(predictor_vector_size, activation='leaky_relu'),
-            tf.keras.layers.Dense(512, activation='leaky_relu'),
-            tf.keras.layers.Dropout(0.9),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
-            tf.keras.layers.Dropout(0.9),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
-            tf.keras.layers.Dropout(0.9),
-            tf.keras.layers.Dense(256, activation='leaky_relu'),
-            tf.keras.layers.Dropout(0.9),
-            tf.keras.layers.Dense(load.output_size, activation='linear')
-        ])
-
-        return model
+    return model, tf.keras.Model([offense_inp], [offense]), tf.keras.Model([defense_inp], [defense])
 
 
-    # Does this have to be a tf function
-    @tf.function
-    def call(self, x, training=False):
-        offense_vector = self.offense_vectorizer(x[:, :load.team_vector_size], training)
-        defense_vector = self.defense_vectorizer(x[:, load.team_vector_size:(2 * load.team_vector_size)], training)
-        meta_vector = self.meta_vectorizer(x[:, (2 * load.team_vector_size):], training)
-
-        prediction = self.predictor(tf.concat([offense_vector, defense_vector, meta_vector], 1), training)
-        return prediction
+def save_model(model):
+    model.save_weights(model_location)
 
 
-    def save(self):
-        self.offense_vectorizer.save_weights(offense_location)
-        self.defense_vectorizer.save_weights(defense_location)
-        self.meta_vectorizer.save_weights(meta_location)
-        self.predictor.save_weights(predictor_location)
-
-
-    def load(self):
-        # I don't know what expect partial means
-        self.offense_vectorizer.load_weights(offense_location).expect_partial()
-        self.defense_vectorizer.load_weights(defense_location).expect_partial()
-        self.meta_vectorizer.load_weights(meta_location).expect_partial()
-        self.predictor.load_weights(predictor_location).expect_partial()
+def load_model(model):
+    model.load_weights(model_location).expect_partial()

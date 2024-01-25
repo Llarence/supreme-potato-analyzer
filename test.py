@@ -3,14 +3,14 @@ import tensorflow as tf
 import load
 import models
 
-predictor = models.Predictor()
-predictor.load()
+model, _, _ = models.create_models()
+models.load_model(model)
 
 def test(x, y):
-    pred_y = predictor.predict(x)[:, 0]
+    pred_y = model(x).mean()
 
     # For load matches come in pairs blue then red
-    blue_indices = tf.range(0, len(x), delta=2)
+    blue_indices = tf.range(0, len(y), delta=2)
     red_indices = blue_indices + 1
 
     blue_y = tf.gather(y, blue_indices)
@@ -28,5 +28,5 @@ def test(x, y):
     print(tf.reduce_mean(tf.cast(accurate_preds, tf.float32)).numpy())
 
 
-test(load.test_x, load.test_y)
-test(load.x, load.y)
+test((load.test_x_offense, load.test_x_defense, load.test_x_meta), load.test_y)
+test((load.x_offense, load.x_defense, load.x_meta), load.y)

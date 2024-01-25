@@ -13,23 +13,32 @@ teams_to_ids = dict(zip(teams, team_ids))
 
 one_hot_teams = tf.one_hot(team_ids, num_teams)
 
-x = np.load(shared.xs_location)
-y = np.load(shared.ys_location)
+x_offense = np.load(shared.x_offense_location)
+x_defense = np.load(shared.x_defense_location)
+x_meta = np.load(shared.x_meta_location)
+y = np.load(shared.y_location)
 
-x = tf.constant(x)
+x_offense = tf.constant(x_offense)
+x_defense = tf.constant(x_defense)
+x_meta = tf.constant(x_meta)
 y = tf.constant(y)
 
-test_x = np.load(shared.test_xs_location)
-test_y = np.load(shared.test_ys_location)
+test_x_offense = np.load(shared.test_x_offense_location)
+test_x_defense = np.load(shared.test_x_defense_location)
+test_x_meta = np.load(shared.test_x_meta_location)
+test_y = np.load(shared.test_y_location)
 
-test_x = tf.constant(test_x)
+test_x_offense = tf.constant(test_x_offense)
+test_x_defense = tf.constant(test_x_defense)
+test_x_meta = tf.constant(test_x_meta)
 test_y = tf.constant(test_y)
 
-team_vector_size = num_teams
-meta_vector_size = x.shape[1] - (2 * team_vector_size)
+team_vector_size = x_offense.shape[1]
+meta_vector_size = x_meta.shape[1]
 
-y_shape = y.shape
-if len(y_shape) == 1:
+if len(y.shape) == 1:
+    y = tf.expand_dims(y, 1)
+    test_y = tf.expand_dims(test_y, 1)
     output_size = 1
 else:
-    output_size = y_shape[1]
+    output_size = y.shape[1]
