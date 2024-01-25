@@ -58,9 +58,9 @@ def get_event_matches(key, meta):
         try:
             blue = raw_match['alliances']['blue']
             red = raw_match['alliances']['red']
-            matches.append(((blue['team_keys'], blue['score']), 
-                            (red['team_keys'], red['score']),
-                            (int(raw_match['comp_level'] != 'qm'), week)))
+            matches.append(((blue['team_keys'], (blue['score'])), 
+                            (red['team_keys'], (red['score'])),
+                            (raw_match['comp_level'] != 'qm', week)))
         except:
             pass
 
@@ -74,7 +74,10 @@ def match_to_data(match, teams_to_ids, on_hot_teams):
     one_hot_red = sum([on_hot_teams[teams_to_ids[red_team]] for red_team in red_teams])
     meta = tf.constant(meta, dtype=tf.float32)
 
-    return one_hot_blue, one_hot_red, meta, tf.constant(blue_score, dtype=tf.float32), tf.constant(red_score, dtype=tf.float32)
+    blue_y = tf.constant([blue_score], dtype=tf.float32)
+    red_y = tf.constant([red_score], dtype=tf.float32)
+
+    return one_hot_blue, one_hot_red, meta, blue_y, red_y
 
 
 def load(key, meta, teams, matches):

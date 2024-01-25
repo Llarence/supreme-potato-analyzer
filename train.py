@@ -21,7 +21,7 @@ history = model.fit((load.x_offense, load.x_defense, load.x_meta),
                     load.y,
                     epochs=1000,
                     validation_data=((load.test_x_offense, load.test_x_defense, load.test_x_meta), load.test_y),
-                    callbacks=[tf.keras.callbacks.EarlyStopping(patience=50, restore_best_weights=True)])
+                    callbacks=[tf.keras.callbacks.EarlyStopping(patience=25, restore_best_weights=True)])
 
 models.save_model(model)
 

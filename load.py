@@ -36,9 +36,4 @@ test_y = tf.constant(test_y)
 team_vector_size = x_offense.shape[1]
 meta_vector_size = x_meta.shape[1]
 
-if len(y.shape) == 1:
-    y = tf.expand_dims(y, 1)
-    test_y = tf.expand_dims(test_y, 1)
-    output_size = 1
-else:
-    output_size = y.shape[1]
+output_size = y.shape[1]
