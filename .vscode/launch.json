@@ -26,10 +26,18 @@
             "justMyCode": true
         },
         {
-            "name": "Use",
+            "name": "Compare",
             "type": "python",
             "request": "launch",
-            "program": "use.py",
+            "program": "compare.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Predict",
+            "type": "python",
+            "request": "launch",
+            "program": "predict.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }
