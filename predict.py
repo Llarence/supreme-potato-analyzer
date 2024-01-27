@@ -5,6 +5,26 @@ import sklearn.decomposition as dc
 import load
 import models
 
+def print_score(name, means, stddevs):
+    print(f'{name}:')
+
+    print('  Total:')
+    print(f'    Mean:               {means[0]}')
+    print(f'    Standard Deviation: {stddevs[0]}')
+
+    print('  Auto:')
+    print(f'    Mean:               {means[1]}')
+    print(f'    Standard Deviation: {stddevs[1]}')
+
+    print('  Teleop:')
+    print(f'    Mean:               {means[2]}')
+    print(f'    Standard Deviation: {stddevs[2]}')
+
+    print('  Foul:')
+    print(f'    Mean:               {means[3]}')
+    print(f'    Standard Deviation: {stddevs[3]}')
+
+
 model, _, _ = models.create_models()
 models.load_model(model)
 
@@ -18,5 +38,8 @@ output = model((tf.stack([blue_vector, red_vector], 0),
                 tf.stack([red_vector, blue_vector], 0),
                 tf.stack([meta_vector, meta_vector], 0)))
 
-print(f'Blue Mean: {output.mean()[0, 0]}, Blue Standard Deviation: {output.stddev()[0, 0]}')
-print(f'Red Mean: {output.mean()[1, 0]}, Red Standard Deviation: {output.stddev()[1, 0]}')
+means = output.mean()
+stddevs = output.stddev()
+
+print_score('Blue', means[0], stddevs[0])
+print_score('Red', means[1], stddevs[1])

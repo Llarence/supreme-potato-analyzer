@@ -49,6 +49,10 @@ def get_event_teams(key):
     return teams
 
 
+def get_points(breakdown):
+    return (breakdown['totalPoints'], breakdown['autoPoints'], breakdown['teleopPoints'], breakdown['foulPoints'])
+
+
 def get_event_matches(key, meta):
     week, = meta
     raw_matches = tba.event_matches(key)
@@ -56,10 +60,12 @@ def get_event_matches(key, meta):
     matches = []
     for raw_match in raw_matches:
         try:
-            blue = raw_match['alliances']['blue']
-            red = raw_match['alliances']['red']
-            matches.append(((blue['team_keys'], (blue['score'])), 
-                            (red['team_keys'], (red['score'])),
+            alliances = raw_match['alliances']
+            score_breakdown = raw_match['score_breakdown']
+            blue_score = score_breakdown['blue']
+            red_score = score_breakdown['red']
+            matches.append(((alliances['blue']['team_keys'], get_points(blue_score)), 
+                            (alliances['red']['team_keys'], get_points(red_score)),
                             (raw_match['comp_level'] != 'qm', week)))
         except:
             pass
@@ -74,8 +80,8 @@ def match_to_data(match, teams_to_ids, on_hot_teams):
     one_hot_red = sum([on_hot_teams[teams_to_ids[red_team]] for red_team in red_teams])
     meta = tf.constant(meta, dtype=tf.float32)
 
-    blue_y = tf.constant([blue_score], dtype=tf.float32)
-    red_y = tf.constant([red_score], dtype=tf.float32)
+    blue_y = tf.constant(blue_score, dtype=tf.float32)
+    red_y = tf.constant(red_score, dtype=tf.float32)
 
     return one_hot_blue, one_hot_red, meta, blue_y, red_y
 

@@ -13,7 +13,7 @@ def plot(history, name):
     plt.show()
 
 
-model, means_model, deviations_model = models.create_models()
+model, (means_model, deviations_model), _ = models.create_models()
 
 # models.load_model(model)
 
@@ -24,7 +24,8 @@ history1 = means_model.fit((load.x_offense, load.x_defense, load.x_meta),
                            validation_data=((load.test_x_offense,
                                              load.test_x_defense,
                                              load.test_x_meta), load.test_y),
-                           callbacks=[tf.keras.callbacks.EarlyStopping(patience=25,
+                           callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                                       patience=25,
                                                                        restore_best_weights=True)])
 
 models.save_model(model)
@@ -33,13 +34,14 @@ errors = means_model((load.x_offense, load.x_defense, load.x_meta)) - load.y
 test_errors = means_model((load.test_x_offense, load.test_x_defense, load.test_x_meta)) - load.test_y
 
 history2 = deviations_model.fit((load.x_offense, load.x_defense, load.x_meta),
-                                load.y,
+                                errors,
                                 batch_size=32,
                                 epochs=10000,
                                 validation_data=((load.test_x_offense,
                                                   load.test_x_defense,
-                                                  load.test_x_meta), load.test_y),
-                                callbacks=[tf.keras.callbacks.EarlyStopping(patience=25,
+                                                  load.test_x_meta), test_errors),
+                                callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss',
+                                                                            patience=25,
                                                                             restore_best_weights=True)])
 
 models.save_model(model)

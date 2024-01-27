@@ -3,7 +3,7 @@ import tensorflow as tf
 import load
 import models
 
-model, means_model, deviations_model = models.create_models()
+model, (means_model, deviations_model), _ = models.create_models()
 models.load_model(model)
 
 means_model.evaluate((load.test_x_offense, load.test_x_defense, load.test_x_meta), load.test_y, batch_size=32)
