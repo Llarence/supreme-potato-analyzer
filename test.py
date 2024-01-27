@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-import load
-import models
+from . import load, models
 
 model, (means_model, deviations_model), _ = models.create_models()
 models.load_model(model)

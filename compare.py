@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 import sklearn.decomposition as dc
 import numpy as np
 
-import load
-import models
+from . import load, models
 
 model, _, ((mean_offense_vectorizers, mean_defense_vectorizers, _), \
             (deviation_offense_vectorizers, deviation_defense_vectorizers, _)) = models.create_models()

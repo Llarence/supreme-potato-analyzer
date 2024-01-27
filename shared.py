@@ -1,4 +1,4 @@
-import config
+from . import config
 
 regional = 0
 district = 11

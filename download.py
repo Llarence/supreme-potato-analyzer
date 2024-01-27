@@ -5,9 +5,7 @@ import tbapy
 import threading
 import os
 
-import shared
-import config
-import util
+from . import shared, config, util
 
 tba = tbapy.TBA('3gnerr3ePmpTujuPLT79EyIr0xHC3fSzZBhdmg8EOZSM2nY0duhvb6oYbxx4yimU')
 download_batch_size = 12
@@ -133,7 +131,6 @@ def matches_to_data(matches, teams_to_ids, one_hot_teams):
     y = tf.stack(y)
 
     return x_offense, x_defense, x_meta, y
-
 
 normal_keys_and_metas, champ_keys_and_metas = get_event_keys_and_metas(config.year)
 

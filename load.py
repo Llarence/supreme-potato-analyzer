@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-import shared
+from . import shared
 
 with open(shared.teams_location) as file:
     teams = file.read().split('\n')

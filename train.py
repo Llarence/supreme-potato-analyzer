@@ -1,8 +1,7 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-import load
-import models
+from . import load, models
 
 def plot(history, name):
     val_name = 'val_' + name

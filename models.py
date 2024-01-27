@@ -1,8 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-import load
-import config
+from . import load, config
 
 model_location = f'data/{config.year}/model/'
 

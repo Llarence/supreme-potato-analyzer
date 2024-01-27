@@ -2,8 +2,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import sklearn.decomposition as dc
 
-import load
-import models
+from . import load, models
 
 def print_score(name, means, stddevs):
     print(f'{name}:')
