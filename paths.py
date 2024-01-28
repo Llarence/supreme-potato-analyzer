@@ -2,6 +2,8 @@ import os
 
 path = os.path.dirname(os.path.realpath(__file__))
 
+key_location = f'{path}/key.txt'
+
 def download_location(year):
     return f'{path}/data/{year}/blue_cache_data/'
 def teams_location(year):

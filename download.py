@@ -17,7 +17,10 @@ CHAMPIONSHIP_FINAL = 4
 
 DOWNLOAD_BATCH_SIZE = 12
 
-tba = tbapy.TBA('3gnerr3ePmpTujuPLT79EyIr0xHC3fSzZBhdmg8EOZSM2nY0duhvb6oYbxx4yimU')
+with open(paths.key_location) as file:
+    key = file.read()
+
+tba = tbapy.TBA(key)
 
 def is_normal(event_type):
     return event_type == REGIONAL or \
