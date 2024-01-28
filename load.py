@@ -1,39 +1,43 @@
 import tensorflow as tf
 import numpy as np
 
-from . import shared
+from . import paths
 
-with open(shared.teams_location) as file:
-    teams = file.read().split('\n')
+class Data():
+    def __init__(self, year):
+        self.year = year
 
-num_teams = len(teams)
+        with open(paths.teams_location(year)) as file:
+            self.teams = file.read().split('\n')
 
-team_ids = range(num_teams)
-teams_to_ids = dict(zip(teams, team_ids))
+        self.num_teams = len(self.teams)
 
-one_hot_teams = tf.one_hot(team_ids, num_teams)
+        self.team_ids = range(self.num_teams)
+        self.teams_to_ids = dict(zip(self.teams, self.team_ids))
 
-x_offense = np.load(shared.x_offense_location)
-x_defense = np.load(shared.x_defense_location)
-x_meta = np.load(shared.x_meta_location)
-y = np.load(shared.y_location)
+        self.one_hot_teams = tf.one_hot(self.team_ids, self.num_teams)
 
-x_offense = tf.constant(x_offense)
-x_defense = tf.constant(x_defense)
-x_meta = tf.constant(x_meta)
-y = tf.constant(y)
+        self.x_offense = np.load(paths.x_offense_location(year))
+        self.x_defense = np.load(paths.x_defense_location(year))
+        self.x_meta = np.load(paths.x_meta_location(year))
+        self.y = np.load(paths.y_location(year))
 
-test_x_offense = np.load(shared.test_x_offense_location)
-test_x_defense = np.load(shared.test_x_defense_location)
-test_x_meta = np.load(shared.test_x_meta_location)
-test_y = np.load(shared.test_y_location)
+        self.x_offense = tf.constant(self.x_offense)
+        self.x_defense = tf.constant(self.x_defense)
+        self.x_meta = tf.constant(self.x_meta)
+        self.y = tf.constant(self.y)
 
-test_x_offense = tf.constant(test_x_offense)
-test_x_defense = tf.constant(test_x_defense)
-test_x_meta = tf.constant(test_x_meta)
-test_y = tf.constant(test_y)
+        self.test_x_offense = np.load(paths.test_x_offense_location(year))
+        self.test_x_defense = np.load(paths.test_x_defense_location(year))
+        self.test_x_meta = np.load(paths.test_x_meta_location(year))
+        self.test_y = np.load(paths.test_y_location(year))
 
-team_vector_size = x_offense.shape[1]
-meta_vector_size = x_meta.shape[1]
+        self.test_x_offense = tf.constant(self.test_x_offense)
+        self.test_x_defense = tf.constant(self.test_x_defense)
+        self.test_x_meta = tf.constant(self.test_x_meta)
+        self.test_y = tf.constant(self.test_y)
 
-output_size = y.shape[1]
+        self.team_vector_size = self.x_offense.shape[1]
+        self.meta_vector_size = self.x_meta.shape[1]
+
+        self.output_size = self.y.shape[1]

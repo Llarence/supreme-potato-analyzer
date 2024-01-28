@@ -5,21 +5,30 @@ import tbapy
 import threading
 import os
 
-from . import shared, config, util
+from . import paths, util
+from .test import config
+
+REGIONAL = 0
+DISTRICT = 11
+DISTRICT_CHAMPIONSHIP = 2
+DISTRICT_CHAMPIONSHIP_DIVISION = 5
+CHAMPIONSHIP_DIVISON = 3
+CHAMPIONSHIP_FINAL = 4
+
+DOWNLOAD_BATCH_SIZE = 12
 
 tba = tbapy.TBA('3gnerr3ePmpTujuPLT79EyIr0xHC3fSzZBhdmg8EOZSM2nY0duhvb6oYbxx4yimU')
-download_batch_size = 12
 
 def is_normal(event_type):
-    return event_type == shared.regional or \
-        event_type == shared.district or \
-        event_type == shared.district_championship or \
-        event_type == shared.district_championship_division
+    return event_type == REGIONAL or \
+        event_type == DISTRICT or \
+        event_type == DISTRICT_CHAMPIONSHIP or \
+        event_type == DISTRICT_CHAMPIONSHIP_DIVISION
 
 
 def is_champ(event_type):
-    return event_type == shared.championship_division or \
-        event_type == shared.championship_final
+    return event_type == CHAMPIONSHIP_DIVISON or \
+        event_type == CHAMPIONSHIP_FINAL
 
 
 def get_event_keys_and_metas(year):
@@ -93,7 +102,7 @@ def load_keys(keys_and_metas):
     teams = set()
     matches = []
 
-    batches = [keys_and_metas[i:i + download_batch_size] for i in range(0, len(keys_and_metas), download_batch_size)]
+    batches = [keys_and_metas[i:i + DOWNLOAD_BATCH_SIZE] for i in range(0, len(keys_and_metas), DOWNLOAD_BATCH_SIZE)]
     for curr_keys_and_metas in util.show_percent(batches):
         threads = []
         for key, meta in curr_keys_and_metas:
@@ -132,33 +141,39 @@ def matches_to_data(matches, teams_to_ids, one_hot_teams):
 
     return x_offense, x_defense, x_meta, y
 
-normal_keys_and_metas, champ_keys_and_metas = get_event_keys_and_metas(config.year)
 
-normal_matches, teams1 = load_keys(normal_keys_and_metas)
-champ_matches, teams2 = load_keys(champ_keys_and_metas)
+def download(year):
+    normal_keys_and_metas, champ_keys_and_metas = get_event_keys_and_metas(config.year)
 
-teams = list(teams1.union(teams2))
-num_teams = len(teams)
+    normal_matches, teams1 = load_keys(normal_keys_and_metas)
+    champ_matches, teams2 = load_keys(champ_keys_and_metas)
 
-team_ids = range(num_teams)
-teams_to_ids = dict(zip(teams, team_ids))
+    teams = list(teams1.union(teams2))
+    num_teams = len(teams)
 
-one_hot_teams = tf.one_hot(team_ids, num_teams)
+    team_ids = range(num_teams)
+    teams_to_ids = dict(zip(teams, team_ids))
 
-x_offense, x_defense, x_meta, y = matches_to_data(normal_matches, teams_to_ids, one_hot_teams)
-test_x_offense, test_x_defense, test_x_meta, test_y = matches_to_data(champ_matches, teams_to_ids, one_hot_teams)
+    one_hot_teams = tf.one_hot(team_ids, num_teams)
 
-os.makedirs(shared.download_location, exist_ok=True)
+    x_offense, x_defense, x_meta, y = matches_to_data(normal_matches, teams_to_ids, one_hot_teams)
+    test_x_offense, test_x_defense, test_x_meta, test_y = matches_to_data(champ_matches, teams_to_ids, one_hot_teams)
 
-with open(shared.teams_location, 'w+') as file:
-    file.write('\n'.join(teams))
+    os.makedirs(paths.download_location(year), exist_ok=True)
 
-np.save(shared.x_offense_location, x_offense)
-np.save(shared.x_defense_location, x_defense)
-np.save(shared.x_meta_location, x_meta)
-np.save(shared.y_location, y)
+    with open(paths.teams_location(year), 'w+') as file:
+        file.write('\n'.join(teams))
 
-np.save(shared.test_x_offense_location, test_x_offense)
-np.save(shared.test_x_defense_location, test_x_defense)
-np.save(shared.test_x_meta_location, test_x_meta)
-np.save(shared.test_y_location, test_y)
+    np.save(paths.x_offense_location(year), x_offense)
+    np.save(paths.x_defense_location(year), x_defense)
+    np.save(paths.x_meta_location(year), x_meta)
+    np.save(paths.y_location(year), y)
+
+    np.save(paths.test_x_offense_location(year), test_x_offense)
+    np.save(paths.test_x_defense_location(year), test_x_defense)
+    np.save(paths.test_x_meta_location(year), test_x_meta)
+    np.save(paths.test_y_location(year), test_y)
+
+
+if __name__ == '__main__':
+    download(config.year)

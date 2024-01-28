@@ -1,9 +1,7 @@
 import tensorflow as tf
 import tensorflow_probability as tfp
 
-from . import load, config
-
-model_location = f'data/{config.year}/model/'
+from . import paths
 
 @tf.function
 def to_scale(x):
@@ -44,129 +42,139 @@ def outcome_accuracy(y, pred_y):
     return tf.logical_or(blue_wins == blue_pred_wins, tf.logical_and(ties, pred_ties))
 
 
-def create_game_analyzer(offense_inp, defense_inp, meta_inp):
-    offense = tf.keras.layers.Dense(4, activation='linear', use_bias=False)(offense_inp)
-    defense = tf.keras.layers.Dense(4, activation='linear', use_bias=False)(defense_inp)
-    meta = tf.keras.layers.Dense(2, activation='linear')(meta_inp)
+class GameModel():
+    def __init__(self, year, team_vector_size, meta_vector_size, output_size):
+        self.year = year
 
-    analyzer = tf.keras.layers.Concatenate()([offense, defense, meta])
-    analyzer = tf.keras.layers.BatchNormalization()(analyzer)
-    analyzer = tf.keras.layers.Dense(128, activation='tanh')(analyzer)
-    analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
-    analyzer = tf.keras.layers.Dense(128, activation='tanh')(analyzer)
-    analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
-    analyzer = tf.keras.layers.Dense(128, activation='leaky_relu')(analyzer)
-    analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
-    analyzer = tf.keras.layers.Dense(128, activation='leaky_relu')(analyzer)
-    analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
-    analyzer = tf.keras.layers.Dense(256, activation='linear')(analyzer)
-
-    return analyzer, offense, defense, meta
+        self.model, \
+        (self.means_model, self.deviations_model), \
+        ((self.mean_offense_vectorizers, self.mean_defense_vectorizers, self.mean_meta_vectorizers), \
+            (self.deviation_offense_vectorizers, self.deviation_defense_vectorizers, self.deviation_meta_vectorizers)) = self._create_models(team_vector_size, meta_vector_size, output_size)
 
 
-def create_means(offense_inp, defense_inp, meta_inp):
-    means = []
-    offenses = []
-    defenses = []
-    metas = []
-    for i in range(load.output_size):
-        analyzer, offense, defense, meta = create_game_analyzer(offense_inp, defense_inp, meta_inp)
-        offenses.append(offense)
-        defenses.append(defense)
-        metas.append(meta)
+    def _create_game_analyzer(self, offense_inp, defense_inp, meta_inp):
+        offense = tf.keras.layers.Dense(4, activation='linear', use_bias=False)(offense_inp)
+        defense = tf.keras.layers.Dense(4, activation='linear', use_bias=False)(defense_inp)
+        meta = tf.keras.layers.Dense(2, activation='linear')(meta_inp)
 
-        mean = tf.keras.layers.Dense(256, activation='linear')(analyzer)
-        mean = tf.keras.layers.Dropout(0.4)(mean)
-        mean = tf.keras.layers.Dense(256, activation='linear')(mean)
-        mean = tf.keras.layers.Dropout(0.4)(mean)
-        mean = tf.keras.layers.Dense(1, activation='linear')(mean)
+        analyzer = tf.keras.layers.Concatenate()([offense, defense, meta])
+        analyzer = tf.keras.layers.BatchNormalization()(analyzer)
+        analyzer = tf.keras.layers.Dense(128, activation='tanh')(analyzer)
+        analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
+        analyzer = tf.keras.layers.Dense(128, activation='tanh')(analyzer)
+        analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
+        analyzer = tf.keras.layers.Dense(128, activation='leaky_relu')(analyzer)
+        analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
+        analyzer = tf.keras.layers.Dense(128, activation='leaky_relu')(analyzer)
+        analyzer = tf.keras.layers.Dropout(0.4)(analyzer)
+        analyzer = tf.keras.layers.Dense(256, activation='linear')(analyzer)
 
-        means.append(mean)
-
-    return means, offenses, defenses, metas
+        return analyzer, offense, defense, meta
 
 
-def create_deviations(offense_inp, defense_inp, meta_inp):
-    deviations = []
-    offenses = []
-    defenses = []
-    metas = []
-    for i in range(load.output_size):
-        analyzer, offense, defense, meta = create_game_analyzer(offense_inp, defense_inp, meta_inp)
-        offenses.append(offense)
-        defenses.append(defense)
-        metas.append(meta)
+    def _create_means(self, offense_inp, defense_inp, meta_inp, output_size):
+        means = []
+        offenses = []
+        defenses = []
+        metas = []
+        for i in range(output_size):
+            analyzer, offense, defense, meta = self._create_game_analyzer(offense_inp, defense_inp, meta_inp)
+            offenses.append(offense)
+            defenses.append(defense)
+            metas.append(meta)
 
-        deviation = tf.keras.layers.Dense(128, activation='linear')(analyzer)
-        deviation = tf.keras.layers.Dropout(0.4)(deviation)
-        deviation = tf.keras.layers.BatchNormalization()(deviation)
-        deviation = tf.keras.layers.Dense(128, activation='tanh')(deviation)
-        deviation = tf.keras.layers.Dropout(0.4)(deviation)
-        deviation = tf.keras.layers.Dense(128, activation='tanh')(deviation)
-        deviation = tf.keras.layers.Dropout(0.4)(deviation)
-        deviation = tf.keras.layers.Dense(64, activation='linear')(deviation)
-        deviation = tf.keras.layers.Dropout(0.4)(deviation)
-        deviation = tf.keras.layers.Dense(64, activation='linear')(deviation)
-        deviation = tf.keras.layers.Dropout(0.4)(deviation)
-        deviation = tf.keras.layers.Dense(1, activation='linear')(deviation)
+            mean = tf.keras.layers.Dense(256, activation='linear')(analyzer)
+            mean = tf.keras.layers.Dropout(0.4)(mean)
+            mean = tf.keras.layers.Dense(256, activation='linear')(mean)
+            mean = tf.keras.layers.Dropout(0.4)(mean)
+            mean = tf.keras.layers.Dense(1, activation='linear')(mean)
 
-        deviations.append(deviation)
+            means.append(mean)
 
-    return deviations, offenses, defenses, metas
+        return means, offenses, defenses, metas
 
 
-def create_models():
-    offense_inp = tf.keras.layers.Input(shape=(load.team_vector_size,))
-    defense_inp = tf.keras.layers.Input(shape=(load.team_vector_size,))
-    meta_inp = tf.keras.layers.Input(shape=(load.meta_vector_size,))
+    def _create_deviations(self, offense_inp, defense_inp, meta_inp, output_size):
+        deviations = []
+        offenses = []
+        defenses = []
+        metas = []
+        for i in range(output_size):
+            analyzer, offense, defense, meta = self._create_game_analyzer(offense_inp, defense_inp, meta_inp)
+            offenses.append(offense)
+            defenses.append(defense)
+            metas.append(meta)
 
-    means, mean_offenses, mean_defenses, mean_metas \
-        = create_means(offense_inp, defense_inp, meta_inp)
-    deviations, deviation_offenses, deviation_defenses, deviation_metas \
-        = create_deviations(offense_inp, defense_inp, meta_inp)
-    
-    mean_offense_vectorizers = [tf.keras.Model([offense_inp], [mean_offense])
-                                for mean_offense in mean_offenses]
-    mean_defense_vectorizers = [tf.keras.Model([defense_inp], [mean_defense])
-                                for mean_defense in mean_defenses]
-    mean_meta_vectorizers = [tf.keras.Model([meta_inp], [mean_meta])
-                             for mean_meta in mean_metas]
-    
-    deviation_offense_vectorizers = [tf.keras.Model([offense_inp], [deviation_offense])
-                                     for deviation_offense in deviation_offenses]
-    deviation_defense_vectorizers = [tf.keras.Model([defense_inp], [deviation_defense])
-                                     for deviation_defense in deviation_defenses]
-    deviation_meta_vectorizers = [tf.keras.Model([meta_inp], [deviation_meta])
-                                  for deviation_meta in deviation_metas]
+            deviation = tf.keras.layers.Dense(128, activation='linear')(analyzer)
+            deviation = tf.keras.layers.Dropout(0.4)(deviation)
+            deviation = tf.keras.layers.BatchNormalization()(deviation)
+            deviation = tf.keras.layers.Dense(128, activation='tanh')(deviation)
+            deviation = tf.keras.layers.Dropout(0.4)(deviation)
+            deviation = tf.keras.layers.Dense(128, activation='tanh')(deviation)
+            deviation = tf.keras.layers.Dropout(0.4)(deviation)
+            deviation = tf.keras.layers.Dense(64, activation='linear')(deviation)
+            deviation = tf.keras.layers.Dropout(0.4)(deviation)
+            deviation = tf.keras.layers.Dense(64, activation='linear')(deviation)
+            deviation = tf.keras.layers.Dropout(0.4)(deviation)
+            deviation = tf.keras.layers.Dense(1, activation='linear')(deviation)
 
-    means_output = tf.keras.layers.Concatenate()(means)
-    deviations_output = tf.keras.layers.Concatenate()(deviations)
-    deviations_output = tfp.layers.DistributionLambda(
-        lambda x: tfp.distributions.Normal(loc=0, 
-                                           scale=to_scale(x)))(deviations_output)
+            deviations.append(deviation)
 
-    means_model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [means_output])
-    means_model.compile(optimizer=tf.optimizers.Adam(), loss='mse', metrics=['mae', outcome_accuracy])
-    
-    deviations_model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [deviations_output])
-    deviations_model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-4), loss=prob_loss)
-
-    outputs = tf.keras.layers.Concatenate()(means + deviations)
-    outputs = tfp.layers.DistributionLambda(
-        lambda x: tfp.distributions.Normal(loc=x[:, :load.output_size], 
-                                           scale=to_scale(x[:, load.output_size:])))(outputs)
-
-    model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [outputs])
-
-    return model, \
-        (means_model, deviations_model), \
-        ((mean_offense_vectorizers, mean_defense_vectorizers, mean_meta_vectorizers), \
-            (deviation_offense_vectorizers, deviation_defense_vectorizers, deviation_meta_vectorizers))
+        return deviations, offenses, defenses, metas
 
 
-def save_model(model):
-    model.save_weights(model_location)
+    def _create_models(self, team_vector_size, meta_vector_size, output_size):
+        offense_inp = tf.keras.layers.Input(shape=(team_vector_size,))
+        defense_inp = tf.keras.layers.Input(shape=(team_vector_size,))
+        meta_inp = tf.keras.layers.Input(shape=(meta_vector_size,))
+
+        means, mean_offenses, mean_defenses, mean_metas \
+            = self._create_means(offense_inp, defense_inp, meta_inp, output_size)
+        deviations, deviation_offenses, deviation_defenses, deviation_metas \
+            = self._create_deviations(offense_inp, defense_inp, meta_inp, output_size)
+        
+        mean_offense_vectorizers = [tf.keras.Model([offense_inp], [mean_offense])
+                                    for mean_offense in mean_offenses]
+        mean_defense_vectorizers = [tf.keras.Model([defense_inp], [mean_defense])
+                                    for mean_defense in mean_defenses]
+        mean_meta_vectorizers = [tf.keras.Model([meta_inp], [mean_meta])
+                                for mean_meta in mean_metas]
+        
+        deviation_offense_vectorizers = [tf.keras.Model([offense_inp], [deviation_offense])
+                                        for deviation_offense in deviation_offenses]
+        deviation_defense_vectorizers = [tf.keras.Model([defense_inp], [deviation_defense])
+                                        for deviation_defense in deviation_defenses]
+        deviation_meta_vectorizers = [tf.keras.Model([meta_inp], [deviation_meta])
+                                    for deviation_meta in deviation_metas]
+
+        means_output = tf.keras.layers.Concatenate()(means)
+        deviations_output = tf.keras.layers.Concatenate()(deviations)
+        deviations_output = tfp.layers.DistributionLambda(
+            lambda x: tfp.distributions.Normal(loc=0, 
+                                            scale=to_scale(x)))(deviations_output)
+
+        means_model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [means_output])
+        means_model.compile(optimizer=tf.optimizers.Adam(), loss='mse', metrics=['mae', outcome_accuracy])
+        
+        deviations_model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [deviations_output])
+        deviations_model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-4), loss=prob_loss)
+
+        outputs = tf.keras.layers.Concatenate()(means + deviations)
+        outputs = tfp.layers.DistributionLambda(
+            lambda x: tfp.distributions.Normal(loc=x[:, :output_size], 
+                                            scale=to_scale(x[:, output_size:])))(outputs)
+
+        model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [outputs])
+
+        return model, \
+            (means_model, deviations_model), \
+            ((mean_offense_vectorizers, mean_defense_vectorizers, mean_meta_vectorizers), \
+                (deviation_offense_vectorizers, deviation_defense_vectorizers, deviation_meta_vectorizers))
 
 
-def load_model(model):
-    model.load_weights(model_location).expect_partial()
+    def save_model(self):
+        self.model.save_weights(paths.model_location(self.year))
+
+
+    def load_model(self):
+        self.model.load_weights(paths.model_location(self.year)).expect_partial()
