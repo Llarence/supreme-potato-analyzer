@@ -11,7 +11,11 @@ def to_scale(x):
 
 @tf.function
 def prob_loss(y, pred_y):
-    return -pred_y.log_prob(y)
+    # Since the score can't go less than 0 the tf.math.log(pred_y.tensor_distribution.cdf(0))
+    #  will essentially make the loss based on a normal distribution with everything less than 0
+    #  equal to 0. It has to be divided by 1 - cdf(0) to make it still have cdf(inf) = 1.
+    #  this gets refactored by the log prob to be what it is. It makes things slower though
+    return -pred_y.log_prob(y) + tf.math.log(1 - pred_y.tensor_distribution.cdf(0))
 
 
 # Batch size has to be even and unshuffled for this to work because it relies
