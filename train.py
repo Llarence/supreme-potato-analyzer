@@ -14,39 +14,23 @@ def plot_metric(history, name):
 
 
 def train(model, data, plot=False):
-    history1 = model.means_model.fit(
+    history = model.model.fit(
         (data.x_offense, data.x_defense, data.x_meta),
         data.y,
-        batch_size=32,
         epochs=10000,
+        batch_size=32,
         validation_data=((data.test_x_offense,
                           data.test_x_defense,
                           data.test_x_meta), data.test_y),
         callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                    patience=25,
-                                                    restore_best_weights=True)]
-    )
-
-    errors = model.means_model((data.x_offense, data.x_defense, data.x_meta)) - data.y
-    test_errors = model.means_model((data.test_x_offense, data.test_x_defense, data.test_x_meta)) - data.test_y
-
-    history2 = model.deviations_model.fit(
-        (data.x_offense, data.x_defense, data.x_meta),
-        errors,
-        epochs=10000,
-        validation_data=((data.test_x_offense,
-                          data.test_x_defense,
-                          data.test_x_meta), test_errors),
-        callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                    patience=25,
+                                                    patience=15,
                                                     restore_best_weights=True)]
     )
 
     if plot:
-        plot_metric(history1, 'loss')
-        plot_metric(history1, 'mae')
-        plot_metric(history1, 'outcome_accuracy')
-        plot_metric(history2, 'loss')
+        plot_metric(history, 'loss')
+        plot_metric(history, 'prob_mae')
+        plot_metric(history, 'outcome_accuracy')
 
 
 if __name__ == '__main__':

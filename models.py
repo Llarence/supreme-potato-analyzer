@@ -4,18 +4,23 @@ import tensorflow_probability as tfp
 from . import paths
 
 @tf.function
-def to_scale(x):
-    # The 0.02 will prevent nans if log_prob is used
-    return 0.02 + tf.math.softplus(x)
-
+def to_deviation(x):
+    # The 0.1 will prevent nan in the prob_loss (for some distributions)
+    return 0.25 + tf.math.softplus(x)
 
 @tf.function
 def prob_loss(y, pred_y):
     # Since the score can't go less than 0 the tf.math.log(pred_y.tensor_distribution.cdf(0))
     #  will essentially make the loss based on a normal distribution with everything less than 0
     #  equal to 0. It has to be divided by 1 - cdf(0) to make it still have cdf(inf) = 1.
-    #  this gets refactored by the log prob to be what it is. It makes things slower though
-    return -pred_y.log_prob(y) + tf.math.log(1 - pred_y.tensor_distribution.cdf(0))
+    #  this gets refactored by the log prob to be what it is. I don't know why but
+    #  truncated normal causes -nan losses
+    return pred_y.log_survival_function(0) - pred_y.log_prob(y)
+
+
+@tf.function
+def prob_mae(y, pred_y):
+    return pred_y.mean() - y
 
 
 # Batch size has to be even and unshuffled for this to work because it relies
@@ -152,23 +157,19 @@ class GameModel():
                                     for deviation_meta in deviation_metas]
 
         means_output = tf.keras.layers.Concatenate()(means)
-        deviations_output = tf.keras.layers.Concatenate()(deviations)
-        deviations_output = tfp.layers.DistributionLambda(
-            lambda x: tfp.distributions.Normal(loc=0, 
-                                            scale=to_scale(x)))(deviations_output)
-
         means_model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [means_output])
-        means_model.compile(optimizer=tf.optimizers.Adam(), loss='mse', metrics=['mae', outcome_accuracy])
-        
-        deviations_model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [deviations_output])
-        deviations_model.compile(optimizer=tf.optimizers.Adam(learning_rate=1e-4), loss=prob_loss)
 
-        outputs = tf.keras.layers.Concatenate()(means + deviations)
+        deviations_output = tf.keras.layers.Concatenate()(deviations)
+        deviations_output = tf.keras.layers.Lambda(to_deviation)(deviations_output)
+        deviations_model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [deviations_output])
+
+        outputs = tf.keras.layers.Concatenate()([means_output, deviations_output])
         outputs = tfp.layers.DistributionLambda(
             lambda x: tfp.distributions.Normal(loc=x[:, :output_size], 
-                                            scale=to_scale(x[:, output_size:])))(outputs)
+                                               scale=x[:, output_size:]))(outputs)
 
         model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [outputs])
+        model.compile(optimizer=tf.optimizers.Adam(), loss=prob_loss, metrics=['mae', outcome_accuracy])
 
         return model, \
             (means_model, deviations_model), \
