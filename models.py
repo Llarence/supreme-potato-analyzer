@@ -141,14 +141,14 @@ class GameModel():
             = self._create_means(offense_inp, defense_inp, meta_inp, output_size)
         deviations, deviation_offenses, deviation_defenses, deviation_metas \
             = self._create_deviations(offense_inp, defense_inp, meta_inp, output_size)
-        
+
         mean_offense_vectorizers = [tf.keras.Model([offense_inp], [mean_offense])
                                     for mean_offense in mean_offenses]
         mean_defense_vectorizers = [tf.keras.Model([defense_inp], [mean_defense])
                                     for mean_defense in mean_defenses]
         mean_meta_vectorizers = [tf.keras.Model([meta_inp], [mean_meta])
                                 for mean_meta in mean_metas]
-        
+
         deviation_offense_vectorizers = [tf.keras.Model([offense_inp], [deviation_offense])
                                         for deviation_offense in deviation_offenses]
         deviation_defense_vectorizers = [tf.keras.Model([defense_inp], [deviation_defense])
@@ -165,7 +165,7 @@ class GameModel():
 
         outputs = tf.keras.layers.Concatenate()([means_output, deviations_output])
         outputs = tfp.layers.DistributionLambda(
-            lambda x: tfp.distributions.Normal(loc=x[:, :output_size], 
+            lambda x: tfp.distributions.Normal(loc=x[:, :output_size],
                                                scale=x[:, output_size:]))(outputs)
 
         model = tf.keras.Model([offense_inp, defense_inp, meta_inp], [outputs])

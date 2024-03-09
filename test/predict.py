@@ -1,6 +1,4 @@
 import tensorflow as tf
-import matplotlib.pyplot as plt
-import sklearn.decomposition as dc
 
 from .. import load, models
 from . import config

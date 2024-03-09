@@ -74,7 +74,7 @@ def get_event_matches(key, meta):
             score_breakdown = raw_match['score_breakdown']
             blue_score = score_breakdown['blue']
             red_score = score_breakdown['red']
-            matches.append(((alliances['blue']['team_keys'], get_points(blue_score)), 
+            matches.append(((alliances['blue']['team_keys'], get_points(blue_score)),
                             (alliances['red']['team_keys'], get_points(red_score)),
                             (raw_match['comp_level'] != 'qm', week)))
         except:
@@ -115,7 +115,7 @@ def load_keys(keys_and_metas):
 
         for thread in threads:
             thread.join()
-    
+
     return matches, teams
 
 

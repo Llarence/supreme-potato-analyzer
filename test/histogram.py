@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-from .. import load, models
+from .. import load
 from . import config
 
 data = load.Data(config.year)
