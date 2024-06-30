@@ -7,8 +7,5 @@ model.load_model()
 
 # Batch size must be even for the game accuracy metric to work
 
-model.means_model.evaluate((data.test_x_offense, data.test_x_defense, data.test_x_meta), data.test_y, batch_size=32)
-model.means_model.evaluate((data.x_offense, data.x_defense, data.x_meta), data.y, batch_size=32)
-
-model.deviations_model.evaluate((data.test_x_offense, data.test_x_defense, data.test_x_meta), data.test_y, batch_size=32)
-model.deviations_model.evaluate((data.x_offense, data.x_defense, data.x_meta), data.y, batch_size=32)
+model.model.evaluate((data.test_x_offense, data.test_x_defense, data.test_x_meta), data.test_y, batch_size=32)
+model.model.evaluate((data.x_offense, data.x_defense, data.x_meta), data.y, batch_size=32)
